@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse: music player for Android</title>
+<meta name="description" content="Pulse: a music player for Android. YouTube, YouTube Music and SoundCloud, your own music, playlists and synced lyrics.">
+<meta name="theme-color" content="#121212">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23D0BCFF' d='M11.72 3.75Q12.73 11.17 20.16 12.19Q12.73 13.2 11.72 20.63Q10.7 13.2 3.28 12.19Q10.7 11.17 11.72 3.75ZM18.28 3.61Q18.55 5.59 20.53 5.86Q18.55 6.13 18.28 8.11Q18.01 6.13 16.03 5.86Q18.01 5.59 18.28 3.61Z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #121212; --card: #1e1e1e; --line: #2e2e2e; --text: #ffffff; --muted: #cfcfcf;
+    --faint: #8a8a8a; --accent: #d0bcff; --on-accent: #1d1b20;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 48px 16px 32px; }
+  .hero { text-align: center; }
+  .mark { width: 72px; height: 72px; color: var(--text); }
+  .mark .small { transform-origin: 76% 24%; animation: twinkle 2.6s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { transform: scale(1); opacity: 1; } 45% { transform: scale(.35); opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .mark .small { animation: none; } }
+  h1 { font-size: 40px; font-weight: 700; margin: 8px 0 4px; letter-spacing: -.5px; }
+  .tagline { color: var(--muted); margin: 0 auto 28px; max-width: 420px; }
+  .buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 52px; padding: 0 28px; border-radius: 26px; width: 100%; max-width: 340px;
+    font-weight: 600; font-size: 16px; text-decoration: none;
+  }
+  .btn svg { width: 20px; height: 20px; flex: none; }
+  .primary { background: var(--text); color: #121212; }
+  .primary:active { background: #dddddd; }
+  .secondary { background: #2a2a2a; color: var(--text); }
+  .secondary:active { background: #333333; }
+  .meta { color: var(--faint); font-size: 13px; margin-top: 6px; min-height: 20px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--accent); color: var(--on-accent); vertical-align: 2px; }
+  section { background: var(--card); border-radius: 28px; padding: 22px 22px 18px; margin-top: 18px; }
+  h2 { font-size: 17px; margin: 0 0 12px; font-weight: 600; }
+  ol, ul { margin: 0; padding-left: 20px; color: var(--muted); }
+  li { margin: 0 0 8px; }
+  li b { color: var(--text); font-weight: 600; }
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; padding: 0; list-style: none; }
+  .features li { margin: 0; }
+  .features li::before { content: "✦ "; color: var(--accent); }
+  a { color: var(--accent); }
+  footer { text-align: center; color: var(--faint); font-size: 13px; padding: 28px 16px 40px; }
+  footer p { margin: 6px 0; }
+  footer img { height: 32px; margin-top: 10px; }
+  @media (max-width: 380px) { .features { grid-template-columns: 1fr; } h1 { font-size: 34px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M11.72 3.75Q12.73 11.17 20.16 12.19Q12.73 13.2 11.72 20.63Q10.7 13.2 3.28 12.19Q10.7 11.17 11.72 3.75Z"/>
+      <path class="small" fill="currentColor" d="M18.28 3.61Q18.55 5.59 20.53 5.86Q18.55 6.13 18.28 8.11Q18.01 6.13 16.03 5.86Q18.01 5.59 18.28 3.61Z"/>
+    </svg>
+    <h1>Pulse</h1>
+    <p class="tagline">A music player for Android: search YouTube, YouTube Music and SoundCloud, play your own music, keep playlists and follow synced lyrics.</p>
+
+    <div class="buttons">
+      <a class="btn primary" id="download" href="https://github.com/seltenbas-lang/Pulse/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+        <span id="download-label">Download Pulse</span>
+      </a>
+      <div class="meta" id="download-meta">For Android 8.0 or newer</div>
+      <a class="btn secondary" id="beta" href="#" hidden>
+        <span id="beta-label">Try the beta</span>
+      </a>
+      <div class="meta" id="beta-meta" hidden></div>
+    </div>
+  </div>
+
+  <section>
+    <h2>Install</h2>
+    <ol>
+      <li><b>Download</b> the APK with the button above, on your phone.</li>
+      <li><b>Open</b> the downloaded file. The first time, Android asks to allow installing apps from your browser or file manager: allow it, then tap <b>Install</b>.</li>
+      <li><b>That's it.</b> Pulse updates itself from then on: Settings → About → Updates.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Coming from the old Pulse?</h2>
+    <ol>
+      <li>In the old app: <b>Settings → Storage → Back up this profile</b>.</li>
+      <li>Uninstall the old app, then install this one.</li>
+      <li>In the new app: <b>Settings → Storage → Restore a backup</b>. Playlists, favorites, history and settings come back.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>What's in it</h2>
+    <ul class="features">
+      <li>YouTube, YouTube Music, SoundCloud</li>
+      <li>Your own music files</li>
+      <li>Playlists and favorites</li>
+      <li>Synced lyrics, karaoke view</li>
+      <li>Speed, pitch, EQ presets</li>
+      <li>Sleep timer</li>
+      <li>Themes and backgrounds</li>
+      <li>Profiles for everyone</li>
+      <li>Plays with the screen off</li>
+      <li>No ads, no account</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Requirements</h2>
+    <ul>
+      <li>Android 8.0 or newer, on a 64-bit phone (almost every phone from the last years).</li>
+      <li>Betas: Settings → About → <b>Get beta versions</b> to get bug fixes sooner.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p><a href="https://github.com/seltenbas-lang/Pulse">Source code on GitHub</a> · <a href="https://github.com/seltenbas-lang/Pulse/releases">All versions</a> · <a href="https://github.com/seltenbas-lang/Pulse/blob/main/LEGAL.md">Legal</a></p>
+  <p>Pulse is a player for private listening. It doesn't host, upload or sell music, and isn't affiliated with YouTube, Google or SoundCloud. MIT license.</p>
+  <a href="https://slint.dev"><img src="https://raw.githubusercontent.com/slint-ui/slint/master/logo/MadeWithSlint-logo-dark.svg" alt="Made with Slint"></a>
+</footer>
+
+<script>
+  // The newest release and the newest beta (pre-release), straight from GitHub, so this page never
+  // needs editing for a new version. Without an answer the button still goes to the latest release.
+  (function () {
+    var ver = function (tag) {
+      var m = String(tag || '').replace(/^v/i, '').match(/^(\d+)\.(\d+)\.(\d+)/);
+      return m ? [+m[1], +m[2], +m[3]] : null;
+    };
+    var newer = function (a, b) {
+      for (var i = 0; i < 3; i++) { if (a[i] !== b[i]) return a[i] > b[i]; }
+      return false;
+    };
+    var apkOf = function (r) {
+      return (r.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
+    };
+    var mb = function (bytes) { return (bytes / 1048576).toFixed(0) + ' MB'; };
+    var day = function (s) {
+      try { return new Date(s).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }); }
+      catch (e) { return ''; }
+    };
+    fetch('https://api.github.com/repos/seltenbas-lang/Pulse/releases?per_page=20')
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (list) {
+        var stable = null, beta = null;
+        list.forEach(function (r) {
+          var v = ver(r.tag_name), apk = apkOf(r);
+          if (r.draft || !v || !apk) return;
+          var item = { v: v, name: v.join('.'), apk: apk, date: r.published_at };
+          if (r.prerelease) { if (!beta || newer(v, beta.v)) beta = item; }
+          else if (!stable || newer(v, stable.v)) stable = item;
+        });
+        if (stable) {
+          document.getElementById('download').href = stable.apk.browser_download_url;
+          document.getElementById('download-label').textContent = 'Download Pulse ' + stable.name;
+          document.getElementById('download-meta').textContent =
+            mb(stable.apk.size) + ' · ' + day(stable.date) + ' · Android 8.0 or newer';
+        }
+        if (beta && (!stable || newer(beta.v, stable.v))) {
+          var b = document.getElementById('beta');
+          b.href = beta.apk.browser_download_url;
+          b.hidden = false;
+          document.getElementById('beta-label').innerHTML = 'Pulse ' + beta.name + ' <span class="badge">BETA</span>';
+          var m = document.getElementById('beta-meta');
+          m.hidden = false;
+          m.textContent = 'Newest bug fixes, tested less · ' + mb(beta.apk.size);
+          if (!stable) {
+            document.getElementById('download').hidden = true;
+            document.getElementById('download-meta').hidden = true;
+          }
+        }
+      })
+      .catch(function () { /* the button keeps its link to the latest release */ });
+  })();
+</script>
+</body>
+</html>
