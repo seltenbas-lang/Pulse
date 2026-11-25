@@ -6,16 +6,16 @@ name: Release
 # One-time setup, in Settings → Secrets and variables → Actions:
 #   PULSE_KEYSTORE_BASE64     the release keystore, base64-encoded
 #   PULSE_KEYSTORE_PASSWORD   its password
-# Unticked, "Run workflow" only builds, and keeps the APK as a download of the run.
+# "Run workflow" publishes by default; unticked, it only builds and keeps the APK as a download of the run.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish as a release (v<version> from Cargo.toml)
+        description: Publish as a release (v<version> from Cargo.toml); untick to only build
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
