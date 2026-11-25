@@ -320,6 +320,8 @@ struct App {
     current_growing: Option<(PathBuf, Arc<Growing>)>,
     /// Settings > About > Updates
     update: updates::State,
+    /// the question shown (`ask`), waiting for its answer
+    asking: Option<updates::Ask>,
 }
 
 thread_local! {
@@ -586,6 +588,7 @@ pub fn run(platform: Platform) -> Result<(), String> {
         downloads: Arc::default(),
         current_growing: None,
         update: updates::State::default(),
+        asking: None,
     };
     APP.with(|a| *a.borrow_mut() = Some(app));
     ui.set_version(APP_VERSION.into());
@@ -859,6 +862,9 @@ fn wire(ui: &AppWindow) {
     });
     ui.on_add_profile(|| {
         with(|a| a.start_profile_form(None));
+    });
+    ui.on_ask_answer(|yes| {
+        with(|a| a.answered(yes));
     });
     ui.on_lyric_seek(|i| {
         with(|a| a.lyric_seek(i.max(0) as usize));

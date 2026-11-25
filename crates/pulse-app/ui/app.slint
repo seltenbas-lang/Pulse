@@ -967,6 +967,13 @@ export component AppWindow inherits Window {
     in property <[string]> prof-emojis-2;
     in property <string> prof-letter;
     in-out property <int> prof-confirm: -1;     // the row asked to be deleted
+    // a question with two answers, asked by Rust (e.g. "install the beta?")
+    in property <bool> ask-shown;
+    in property <string> ask-title;
+    in property <string> ask-text;
+    in property <string> ask-yes: "OK";
+    in property <string> ask-no: "Cancel";
+    callback ask-answer(bool);
     callback prof-switch(int);
     callback prof-start-edit(int);
     callback prof-start-add();
@@ -1893,6 +1900,31 @@ export component AppWindow inherits Window {
 
     // nothing visible: drop-focus() moves the keyboard focus here, which closes the keyboard
     focus-sink := FocusScope { x: 0; y: 0; width: 0px; height: 0px; }
+
+    // a question from Rust, with its two answers (outside the box is "no")
+    if root.ask-shown: Rectangle {
+        background: #00000099;
+        TouchArea { clicked => { root.ask-answer(false); } }
+        Rectangle {
+            x: 24px; width: root.width - 48px; y: (root.height - self.height) / 2;
+            height: acol.preferred-height; border-radius: 28px; background: Theme.sheet;
+            TouchArea { }
+            acol := VerticalLayout {
+                padding: 24px; spacing: 16px;
+                HorizontalLayout {
+                    spacing: 10px;
+                    Icon { stroke-path: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"; tint: #F5B83D; width: 22px; height: 22px; }
+                    Text { text: root.ask-title; color: Theme.text; font-size: (17px) * Theme.fk; font-weight: 600; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
+                }
+                Text { text: root.ask-text; color: Theme.muted; font-size: (13.3px) * Theme.fk; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 8px; alignment: end;
+                    Pill { label: root.ask-no; filled: false; clicked => { root.ask-answer(false); } }
+                    Pill { label: root.ask-yes; primary: true; clicked => { root.ask-answer(true); } }
+                }
+            }
+        }
+    }
 
     // profiles.js asks before deleting a profile
     if root.prof-confirm >= 0: Rectangle {

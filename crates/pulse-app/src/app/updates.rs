@@ -4,11 +4,15 @@
 
 use super::*;
 
-/// Where releases are published: the latest full release, or (with "Get beta versions" on) the
-/// newest of all of them, pre-releases included.
-pub const RELEASES: &str = "https://api.github.com/repos/seltenbas-lang/Pulse/releases/latest";
+/// Where releases are published; full releases and betas (pre-releases) alike.
 pub const ALL_RELEASES: &str = "https://api.github.com/repos/seltenbas-lang/Pulse/releases?per_page=20";
 const DAY_MS: f64 = 24.0 * 3600.0 * 1000.0;
+
+/// What a question shown with `App::ask` is about.
+pub(super) enum Ask {
+    /// install this beta: version, APK url, APK size
+    InstallBeta(String, String, u64),
+}
 
 #[derive(Default)]
 pub(super) struct State {
@@ -38,11 +42,14 @@ fn apk_of(release: &Value) -> Option<(String, String, u64)> {
     ))
 }
 
-/// The newest release to offer: (version, APK url, APK size, beta?), or why not.
-async fn latest(net: &Net, beta: bool) -> Result<(String, String, u64, bool), String> {
+/// A release that can be installed: version, APK url, APK size, beta (pre-release)?
+type Release = (String, String, u64, bool);
+
+/// Every published release with an APK (drafts and the original app's untagged builds left out).
+async fn releases(net: &Net) -> Result<Vec<Release>, String> {
     let r = net
         .client
-        .get(if beta { ALL_RELEASES } else { RELEASES })
+        .get(ALL_RELEASES)
         .header("User-Agent", "Pulse-Android")
         .header("Accept", "application/vnd.github+json")
         .send()
@@ -54,16 +61,18 @@ async fn latest(net: &Net, beta: bool) -> Result<(String, String, u64, bool), St
         s => return Err(format!("GitHub answered {s}")),
     }
     let v: Value = r.json().await.map_err(|e| e.to_string())?;
-    if !beta {
-        let (ver, url, size) = apk_of(&v).ok_or("the latest release has no APK")?;
-        return Ok((ver, url, size, false));
-    }
-    js::list(Some(&v))
+    Ok(js::list(Some(&v))
         .iter()
         .filter(|r| !r.get("draft").is_some_and(js::truthy))
         .filter_map(|r| apk_of(r).map(|(ver, url, size)| (ver, url, size, r.get("prerelease").is_some_and(js::truthy))))
-        .max_by_key(|(ver, ..)| version_of(ver))
-        .ok_or_else(|| "no release has an APK".into())
+        .filter(|(ver, ..)| version_of(ver) > (0, 0, 0))
+        .collect())
+}
+
+/// The newest full release and the newest beta.
+fn newest(list: &[Release]) -> (Option<Release>, Option<Release>) {
+    let pick = |beta: bool| list.iter().filter(|r| r.3 == beta).max_by_key(|r| version_of(&r.0)).cloned();
+    (pick(false), pick(true))
 }
 
 impl App {
@@ -81,27 +90,58 @@ impl App {
         self.update.status = "Checking…".into();
         self.show_settings_groups();
         let net = self.net.clone();
-        let beta = self.store.get("pulse_update_beta") == Some("1");
+        let beta_on = self.store.get("pulse_update_beta") == Some("1");
         self.rt.spawn(async move {
-            let r = latest(&net, beta).await;
+            let r = releases(&net).await;
             later(move |a| {
                 a.update.busy = false;
                 a.store.set("pulse_update_last", js::num_to_string(now_ms().round()));
+                let mine = version_of(APP_VERSION);
                 match r {
-                    Ok((v, url, size, pre)) if version_of(&v) > version_of(APP_VERSION) && !url.is_empty() => {
-                        let v = if pre { format!("{v} (beta)") } else { v };
-                        a.update.status = format!("Pulse {v} is available");
-                        a.store.set("pulse_update_found", v.clone());
-                        journal(&format!("update: {v} available"));
-                        a.toast(&format!("Pulse {v} is available: Settings → About → Update"));
-                        a.update.found = Some((v, url, size));
-                    }
-                    Ok(_) => {
-                        a.update.status = format!("You have the latest version ({APP_VERSION})");
-                        a.update.found = None;
-                        a.store.remove("pulse_update_found");
-                        if manual {
-                            a.toast("Pulse is up to date");
+                    Ok(list) => {
+                        let (stable, beta) = newest(&list);
+                        let stable = stable.filter(|s| version_of(&s.0) > mine);
+                        // a beta counts when it is newer than both this version and the newest full one
+                        let beta = beta.filter(|b| {
+                            version_of(&b.0) > mine && stable.as_ref().is_none_or(|s| version_of(&b.0) > version_of(&s.0))
+                        });
+                        a.update.found = stable.as_ref().map(|s| (s.0.clone(), s.1.clone(), s.2));
+                        a.update.status = match &stable {
+                            Some(s) => format!("Pulse {} is available", s.0),
+                            None => format!("You have the latest version ({APP_VERSION})"),
+                        };
+                        match (beta, manual, beta_on) {
+                            // "Check now": ask, with a warning, before a beta
+                            (Some(b), true, _) => {
+                                a.ask(
+                                    "Beta version available",
+                                    &format!(
+                                        "Pulse {} (beta) is available. Betas bring bug fixes sooner but are tested less, so something may not work right. Do you want to install it?",
+                                        b.0
+                                    ),
+                                    "Install beta",
+                                    "Decline",
+                                    Ask::InstallBeta(b.0.clone(), b.1.clone(), b.2),
+                                );
+                            }
+                            // the daily check, "Get beta versions" on: offer it on the row
+                            (Some(b), false, true) => {
+                                a.update.found = Some((format!("{} (beta)", b.0), b.1.clone(), b.2));
+                                a.update.status = format!("Pulse {} (beta) is available", b.0);
+                                a.toast(&format!("Pulse {} (beta) is available: Settings → About → Update", b.0));
+                            }
+                            _ => {
+                                if let Some(s) = &stable {
+                                    journal(&format!("update: {} available", s.0));
+                                    a.toast(&format!("Pulse {} is available: Settings → About → Update", s.0));
+                                } else if manual {
+                                    a.toast("Pulse is up to date");
+                                }
+                            }
+                        }
+                        match &a.update.found {
+                            Some((v, ..)) => a.store.set("pulse_update_found", v.split(' ').next().unwrap_or(v).to_string()),
+                            None => a.store.remove("pulse_update_found"),
                         }
                     }
                     Err(e) => {
@@ -116,6 +156,35 @@ impl App {
                 a.show_settings_groups();
             });
         });
+    }
+
+    /// Shows a question with two answers; the answer comes back to `answered`.
+    pub(super) fn ask(&mut self, title: &str, text: &str, yes: &str, no: &str, what: Ask) {
+        self.ui.set_ask_title(title.into());
+        self.ui.set_ask_text(text.into());
+        self.ui.set_ask_yes(yes.into());
+        self.ui.set_ask_no(no.into());
+        self.asking = Some(what);
+        self.ui.set_ask_shown(true);
+    }
+
+    pub(super) fn answered(&mut self, yes: bool) {
+        self.ui.set_ask_shown(false);
+        match self.asking.take() {
+            Some(Ask::InstallBeta(v, url, size)) if yes => {
+                journal(&format!("update: installing beta {v}"));
+                self.update.found = Some((format!("{v} (beta)"), url, size));
+                self.start_update();
+            }
+            Some(Ask::InstallBeta(v, ..)) => {
+                journal(&format!("update: beta {v} declined"));
+                if self.update.found.is_none() {
+                    self.update.status = format!("You have Pulse {APP_VERSION}. A beta ({v}) is available; you declined it");
+                }
+                self.show_settings_groups();
+            }
+            None => {}
+        }
     }
 
     /// Downloads the new version's APK into files/updates and opens the installer.
