@@ -59,8 +59,9 @@ Versions: `./bump-version.sh` moves the version on for each release (2.0.1 … 2
 lives in `Cargo.toml` only; the app's About page, Android's version name and code and the APK's name
 all come from there.
 
-Releasing: bump the version and commit, then on GitHub: Actions → Release → Run workflow with
-"Publish as a release" ticked (or push a tag `v<version>`). The Release workflow
+Releasing: bump the version and commit, then on GitHub: Actions → Release → Run workflow. Bug fixes go
+out as pre-releases (betas, the default); phones with Settings → About → "Get beta versions" on get
+them. To make one the version everyone gets, edit the release and untick "Set as a pre-release". The Release workflow
 (`.github/workflows/release.yml`) builds the APK, signs it and publishes it as that GitHub release. It
 needs two repository secrets (Settings → Secrets and variables → Actions): `PULSE_KEYSTORE_BASE64`
 (the release keystore, base64-encoded) and `PULSE_KEYSTORE_PASSWORD`.

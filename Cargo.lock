@@ -4132,7 +4132,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-app"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "android-activity 0.6.1",
  "image",
@@ -4152,7 +4152,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-audio"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "cpal",
  "symphonia",
@@ -4160,7 +4160,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-core"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "aes-gcm",
  "flate2",
@@ -4175,7 +4175,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-net"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "futures",
  "pulse-core",
@@ -4190,7 +4190,7 @@ dependencies = [
 
 [[package]]
 name = "pulse-store"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "indexmap",
  "pulse-core",

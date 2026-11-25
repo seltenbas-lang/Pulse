@@ -4,8 +4,10 @@
 
 use super::*;
 
-/// Where releases are published (the latest non-pre-release counts).
+/// Where releases are published: the latest full release, or (with "Get beta versions" on) the
+/// newest of all of them, pre-releases included.
 pub const RELEASES: &str = "https://api.github.com/repos/seltenbas-lang/Pulse/releases/latest";
+pub const ALL_RELEASES: &str = "https://api.github.com/repos/seltenbas-lang/Pulse/releases?per_page=20";
 const DAY_MS: f64 = 24.0 * 3600.0 * 1000.0;
 
 #[derive(Default)]
@@ -23,11 +25,24 @@ pub(super) fn version_of(s: &str) -> (u32, u32, u32) {
     (n.next().unwrap_or(0), n.next().unwrap_or(0), n.next().unwrap_or(0))
 }
 
-/// The latest release: (version, APK url, APK size), or why not.
-async fn latest(net: &Net) -> Result<(String, String, u64), String> {
+fn apk_of(release: &Value) -> Option<(String, String, u64)> {
+    let version = js::str_or_empty(release.get("tag_name"));
+    let apk = js::list(release.get("assets"))
+        .iter()
+        .find(|a| js::str_or_empty(a.get("name")).ends_with(".apk"))
+        .cloned()?;
+    Some((
+        version.trim_start_matches(['v', 'V']).to_string(),
+        js::str_or_empty(apk.get("browser_download_url")),
+        apk.get("size").and_then(Value::as_u64).unwrap_or(0),
+    ))
+}
+
+/// The newest release to offer: (version, APK url, APK size, beta?), or why not.
+async fn latest(net: &Net, beta: bool) -> Result<(String, String, u64, bool), String> {
     let r = net
         .client
-        .get(RELEASES)
+        .get(if beta { ALL_RELEASES } else { RELEASES })
         .header("User-Agent", "Pulse-Android")
         .header("Accept", "application/vnd.github+json")
         .send()
@@ -39,17 +54,16 @@ async fn latest(net: &Net) -> Result<(String, String, u64), String> {
         s => return Err(format!("GitHub answered {s}")),
     }
     let v: Value = r.json().await.map_err(|e| e.to_string())?;
-    let version = js::str_or_empty(v.get("tag_name"));
-    let apk = js::list(v.get("assets"))
+    if !beta {
+        let (ver, url, size) = apk_of(&v).ok_or("the latest release has no APK")?;
+        return Ok((ver, url, size, false));
+    }
+    js::list(Some(&v))
         .iter()
-        .find(|a| js::str_or_empty(a.get("name")).ends_with(".apk"))
-        .cloned()
-        .ok_or("the latest release has no APK")?;
-    Ok((
-        version.trim_start_matches(['v', 'V']).to_string(),
-        js::str_or_empty(apk.get("browser_download_url")),
-        apk.get("size").and_then(Value::as_u64).unwrap_or(0),
-    ))
+        .filter(|r| !r.get("draft").is_some_and(js::truthy))
+        .filter_map(|r| apk_of(r).map(|(ver, url, size)| (ver, url, size, r.get("prerelease").is_some_and(js::truthy))))
+        .max_by_key(|(ver, ..)| version_of(ver))
+        .ok_or_else(|| "no release has an APK".into())
 }
 
 impl App {
@@ -67,13 +81,15 @@ impl App {
         self.update.status = "Checking…".into();
         self.show_settings_groups();
         let net = self.net.clone();
+        let beta = self.store.get("pulse_update_beta") == Some("1");
         self.rt.spawn(async move {
-            let r = latest(&net).await;
+            let r = latest(&net, beta).await;
             later(move |a| {
                 a.update.busy = false;
                 a.store.set("pulse_update_last", js::num_to_string(now_ms().round()));
                 match r {
-                    Ok((v, url, size)) if version_of(&v) > version_of(APP_VERSION) && !url.is_empty() => {
+                    Ok((v, url, size, pre)) if version_of(&v) > version_of(APP_VERSION) && !url.is_empty() => {
+                        let v = if pre { format!("{v} (beta)") } else { v };
                         a.update.status = format!("Pulse {v} is available");
                         a.store.set("pulse_update_found", v.clone());
                         journal(&format!("update: {v} available"));
@@ -117,7 +133,8 @@ impl App {
         let dir = self.platform.data_dir.join("updates");
         let net = self.net.clone();
         self.rt.spawn(async move {
-            let path = dir.join(format!("pulse-{version}.apk"));
+            let file_version = version.split(' ').next().unwrap_or(&version).to_string();
+            let path = dir.join(format!("pulse-{file_version}.apk"));
             let r: Result<(), String> = async {
                 // only this one: older downloads go
                 let _ = std::fs::remove_dir_all(&dir);

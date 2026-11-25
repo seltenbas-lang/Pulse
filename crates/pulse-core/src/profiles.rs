@@ -21,6 +21,7 @@ const DEVICE: &[&str] = &[
     "pulse_update_found",
     "pulse_update_last",
     "pulse_update_snooze",
+    "pulse_update_beta",
     "pulse_welcome_done",
     "pulse_bg_asked",
     "pulse_scale_rebased_v2",

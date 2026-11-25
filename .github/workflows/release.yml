@@ -6,7 +6,9 @@ name: Release
 # One-time setup, in Settings → Secrets and variables → Actions:
 #   PULSE_KEYSTORE_BASE64     the release keystore, base64-encoded
 #   PULSE_KEYSTORE_PASSWORD   its password
-# "Run workflow" publishes by default; unticked, it only builds and keeps the APK as a download of the run.
+# "Run workflow" publishes by default, as a pre-release (beta): phones with Settings > About > "Get
+# beta versions" on get it. To make a beta the version everyone gets, edit the release on GitHub and
+# untick "Set as a pre-release". Unticking "Publish" only builds and keeps the APK as a run download.
 on:
   push:
     tags: ['v*']
@@ -14,6 +16,10 @@ on:
     inputs:
       publish:
         description: Publish as a release (v<version> from Cargo.toml); untick to only build
+        type: boolean
+        default: true
+      prerelease:
+        description: Pre-release (beta) - for bug fixes; phones get it with "Get beta versions" on
         type: boolean
         default: true
 
@@ -94,5 +100,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           v="${{ steps.v.outputs.version }}"
-          gh release create "v$v" "dist/pulse-$v.apk" --target "$GITHUB_SHA" \
-            --title "Pulse $v" --generate-notes
+          pre=""
+          title="Pulse $v"
+          if [ "${{ inputs.prerelease }}" = true ]; then pre="--prerelease"; title="Pulse $v (beta)"; fi
+          gh release create "v$v" "dist/pulse-$v.apk" --target "$GITHUB_SHA" $pre \
+            --title "$title" --generate-notes

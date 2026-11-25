@@ -300,6 +300,11 @@ impl App {
                     let (desc, button) = self.updates_row();
                     Self::buttons("updates", "Updates", &desc, &[button.as_str()]).disabled(self.update.busy)
                 },
+                {
+                    let mut r = Row::new("pulse_update_beta", 1, "Get beta versions", "Bug fixes arrive sooner; they are tested less than full releases");
+                    r.0.on = self.store.get("pulse_update_beta") == Some("1");
+                    r
+                },
                 Self::info("Keyboard shortcuts", "Space play/pause, arrows seek and change the volume (with a keyboard attached)"),
                 Self::buttons("diagnostics", "Diagnostics", &self.ui.get_diagnostics(), &["Save diagnostics"]),
                 Self::info("Logs", "Errors go to the Android log (tag \"pulse\"): adb logcat -s pulse"),
@@ -556,6 +561,15 @@ impl App {
                 self.store.set("pulse_cache_limit_mb", mb.to_string());
             }
             "lang" => {}
+            "pulse_update_beta" => {
+                self.store.set("pulse_update_beta", if v != 0.0 { "1" } else { "0" });
+                self.update.found = None;
+                self.update.status.clear();
+                self.persist();
+                self.check_updates(true);
+                self.show_settings_groups();
+                return;
+            }
             _ => {
                 let Some(kind) = kind_of(id) else { return };
                 let key = store_key(id, kind);

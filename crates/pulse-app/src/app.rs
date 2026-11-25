@@ -312,6 +312,8 @@ struct App {
     eq_flat: bool,
     /// Android's player turned this song down: don't keep asking (each try is a small hiccup)
     offload_refused: bool,
+    /// songs in a row that couldn't be played (after three, playback stops)
+    fail_streak: u32,
     /// songs downloading now, by cache name: playing one and fetching the next ahead share them
     downloads: Downloads,
     /// the playing song while it still downloads: its finished file, once it has all come in
@@ -580,6 +582,7 @@ pub fn run(platform: Platform) -> Result<(), String> {
         engine_file: None,
         eq_flat: true,
         offload_refused: false,
+        fail_streak: 0,
         downloads: Arc::default(),
         current_growing: None,
         update: updates::State::default(),
@@ -2228,7 +2231,7 @@ impl App {
                         a.prefetch_next();
                         a.schedule_tick();
                     }
-                    Err(e) => a.toast(&format!("Can't play this song: {e}")),
+                    Err(e) => a.song_failed(&format!("Can't play this song: {e}")),
                 }
             });
         });
@@ -2383,8 +2386,30 @@ impl App {
         }
     }
 
+    /// A song couldn't be loaded or stopped with an error: say so everywhere (the lock screen,
+    /// notification and HyperIsland kept showing "playing" while nothing played), then go on with
+    /// the next song, like other players; three in a row and it stops (no network, most likely).
+    fn song_failed(&mut self, why: &str) {
+        journal(&format!("play: {why}"));
+        self.fail_streak += 1;
+        self.ui.set_playing(false);
+        let pos = self.p_position();
+        self.publish_media(false, pos);
+        let more = self.index.is_some_and(|i| i + 1 < self.queue.len() || self.repeat == Repeat::All);
+        if self.fail_streak < 3 && more {
+            self.toast(&format!("{why}. Playing the next song"));
+            // as the next button does: repeat-one would only retry the same song
+            self.next(true);
+        } else {
+            self.toast(why);
+            self.fail_streak = 0;
+        }
+        self.schedule_tick();
+    }
+
     /// The next song in the queue starts downloading now, so it begins at once when its turn comes.
     fn prefetch_next(&mut self) {
+        self.fail_streak = 0;
         let Some(i) = self.index else { return };
         if self.shuffle || self.queue.is_empty() {
             return;
@@ -2631,7 +2656,7 @@ impl App {
                 }
                 Event::Error(e) => {
                     self.ui.set_busy(false);
-                    self.toast(&format!("Playback stopped: {e}"));
+                    self.song_failed(&format!("Playback stopped: {e}"));
                 }
             }
         }
