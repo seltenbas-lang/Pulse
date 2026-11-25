@@ -1,0 +1,16 @@
+[package]
+name = "pulse-net"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+pulse-core = { path = "../pulse-core" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "rustls-tls-webpki-roots", "gzip"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde = { version = "1", features = ["derive"] }
+regex = "1"
+url = "2"
+futures = "0.3"
+thiserror = "2"

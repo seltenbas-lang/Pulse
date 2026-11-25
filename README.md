@@ -1,52 +1,78 @@
 # Pulse
 
-A lightweight desktop music player for Windows, Linux and macOS. Stream from YouTube, YouTube Music and SoundCloud, download for offline listening, and keep a local library — no account, no subscription.
+A music player for Android: YouTube, YouTube Music and SoundCloud search, your own music files,
+playlists, favorites, synced lyrics, an audio sheet with speed, pitch, EQ presets and a sleep timer,
+themes, background pictures and profiles. It is a native rewrite in Rust of
+[Pulse 1.3.10](LEGAL.md) (originally a JavaScript/Capacitor app), made to look and behave like the
+original's phone version while using far less battery.
 
-> Pulse is an independent, non-commercial open-source project and is not affiliated with YouTube, Google,
-> SoundCloud, Spotify or Apple. It hosts no music. Use it for private listening and only download music you
-> have the right to. See [LEGAL.md](LEGAL.md) (also for rights holders).
+[![Made with Slint](https://raw.githubusercontent.com/slint-ui/slint/master/logo/MadeWithSlint-logo-light.svg)](https://slint.dev)
 
-## Features
+## Install
 
-- **Streaming & downloads** — YouTube, YouTube Music and SoundCloud via yt-dlp and ffmpeg (installed automatically on first run)
-- **Local library** — reads tags and album art, folders and playlists, original files stay untouched
-- **Lyrics** — online synced lyrics, LRC files, manual timing, fullscreen karaoke
-- **Audio** — EQ, presets, real-time speed, reverb, and a small editor for trimming and exporting clips
-- **Compact layout** — slim navigation rail, slide-over drawer for now playing, lyrics and the queue
-- **Custom background** — image, GIF or video, with optional glass blur on the interface; pauses while Pulse is hidden
-- **Performance settings** — lightweight thumbnails, blur on/off, visualizer frame-rate cap, memory trimming in the background, hardware acceleration toggle
+Download `pulse-<version>.apk` from the [latest release](../../releases/latest) and open it on your
+phone (allow installing apps from your browser or file manager when Android asks). After that, Pulse
+updates itself: **Settings → About → Updates** checks for a new release (also quietly once a day),
+downloads it and opens Android's installer.
 
-## Getting started
+Coming from the original app (or from a build signed with another key)? Android only updates an app
+signed with the same key, so: in the old app, **Settings → Storage → Back up this profile**, uninstall
+it, install this one, then **Settings → Storage → Restore a backup**.
 
-Requires Node.js 18 or newer.
+Phones: 64-bit ARM (arm64-v8a), Android 8.0 or newer. An x86_64 build is included for emulators.
 
-```bash
-cd pulse
-npm install
-npm start
+## What's in it
+
+[PARITY.md](PARITY.md) lists every setting and screen of the original and where each stands: ported,
+partly ported (with what's missing), or not possible as it was (with the closest equivalent).
+
+```
+crates/pulse-core    pure logic, ported 1:1 and checked against the original's recorded results
+crates/pulse-net     YouTube / YouTube Music / SoundCloud search and audio, HLS, LRCLIB lyrics
+crates/pulse-audio   decoding (symphonia), the EQ chain, speed and pitch, output (cpal / AAudio)
+crates/pulse-store   the original's storage keys in one JSON file; profiles; backups
+crates/pulse-app     the Slint UI and controller; the Android entry point and JNI bridge
+android/             the Java layer: media session, notification, audio focus, screen-off player,
+                     file picker, update installer; Gradle files
+app-cases/           recorded results of the original's JavaScript, for the parity tests
 ```
 
-## Building
+The original JavaScript app is in this repository's history (the first commit), as the reference the
+Rust code was checked against.
+
+## Build
+
+Needs Rust, the Android SDK (platform 35, build-tools 35), **NDK r30** (Skia needs its libc++), Java 17
+and Gradle 8.9+.
 
 ```bash
-npm run dist
+export ANDROID_HOME=~/Android/Sdk
+export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370
+./build-android.sh release     # -> dist/pulse-<version>.apk
 ```
 
-Installers land in `dist/`. Builds are unsigned: on macOS, right-click Pulse in Applications and choose Open; if macOS says the app is damaged, run `xattr -cr /Applications/Pulse.app`.
+Release builds are signed with the Pulse release key when `PULSE_SIGNING_ENV` points at its
+`signing.env` (kept outside the repository, never committed); otherwise with the debug key, which can't
+update an installed release.
 
-## Data
+Versions: `./bump-version.sh` moves the version on for each release (2.0.1 … 2.0.10, then 2.1.0). It
+lives in `Cargo.toml` only; the app's About page, Android's version name and code and the APK's name
+all come from there. A release is a GitHub release tagged `v<version>` with the APK attached.
 
-- Windows: `%LOCALAPPDATA%\Pulse`
-- macOS: `~/Library/Application Support/Pulse`
-- Linux: `~/.cache/pulse` (settings in `~/.config/pulse`)
+On a computer (for development): `cargo run -p pulse-app --release` (Linux needs
+`libasound2-dev libfontconfig1-dev libxkbcommon-dev`).
 
-## Legal
+## Tests
 
-Pulse is a player: it doesn't host, upload or sell music, has no ads, accounts or tracking, and nobody earns
-money from it. You're responsible for using it in line with copyright and the terms of the services you use.
-Rights holders can reach us by contacting the maintainers directly.
-Details, also in German: [LEGAL.md](LEGAL.md).
+```bash
+cargo test --workspace
+```
+
+The parity tests replay thousands of results recorded from the original's JavaScript
+(`app-cases/*.jsonl`) against the Rust ports: search text, sorting, backups, playlists, profiles, the
+theme engine and more.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). Pulse is a player for private listening; see [LEGAL.md](LEGAL.md).
+The UI is built with [Slint](https://slint.dev) under its royalty-free license.

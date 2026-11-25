@@ -1,0 +1,9 @@
+[package]
+name = "pulse-audio"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+symphonia = { version = "0.5", default-features = false, features = ["aac", "mp3", "isomp4", "flac", "wav", "pcm", "vorbis", "ogg", "mkv", "adpcm"] }
+cpal = "0.18"

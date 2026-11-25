@@ -1,0 +1,36 @@
+[package]
+name = "pulse-app"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "pulse"
+path = "src/main.rs"
+
+[dependencies]
+pulse-core = { path = "../pulse-core" }
+pulse-net = { path = "../pulse-net" }
+pulse-audio = { path = "../pulse-audio" }
+pulse-store = { path = "../pulse-store" }
+slint = { version = "1.19", default-features = false, features = ["std", "compat-1-2", "renderer-software", "accessibility"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+jpeg-decoder = { version = "0.3", default-features = false }
+lofty = "0.22"
+walkdir = "2"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+slint = { version = "1.19", default-features = false, features = ["backend-winit", "renderer-femtovg"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+slint = { version = "1.19", default-features = false, features = ["backend-android-activity-06", "renderer-femtovg"] }
+jni = "0.21"
+android-activity = { version = "0.6", features = ["native-activity"] }
+
+[build-dependencies]
+slint-build = "1.19"

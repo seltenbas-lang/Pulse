@@ -1,0 +1,10 @@
+[package]
+name = "pulse-store"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+pulse-core = { path = "../pulse-core" }
+serde_json = { version = "1", features = ["preserve_order"] }
+indexmap = { version = "2", features = ["serde"] }
