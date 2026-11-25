@@ -57,7 +57,12 @@ update an installed release.
 
 Versions: `./bump-version.sh` moves the version on for each release (2.0.1 … 2.0.10, then 2.1.0). It
 lives in `Cargo.toml` only; the app's About page, Android's version name and code and the APK's name
-all come from there. A release is a GitHub release tagged `v<version>` with the APK attached.
+all come from there.
+
+Releasing: bump the version, commit, then push a tag `v<version>`. The Release workflow
+(`.github/workflows/release.yml`) builds the APK, signs it and publishes it as that GitHub release. It
+needs two repository secrets (Settings → Secrets and variables → Actions): `PULSE_KEYSTORE_BASE64`
+(the release keystore, base64-encoded) and `PULSE_KEYSTORE_PASSWORD`.
 
 On a computer (for development): `cargo run -p pulse-app --release` (Linux needs
 `libasound2-dev libfontconfig1-dev libxkbcommon-dev`).
