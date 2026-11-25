@@ -1,15 +1,21 @@
 name: Release
 
-# Pushing a tag v<version> (the version in Cargo.toml) builds the APK, signs it with the Pulse release
-# key and publishes it as that release; Pulse's in-app updates pick it up from there.
+# Builds the APK, signs it with the Pulse release key and publishes it as release v<version> (the
+# version in Cargo.toml); Pulse's in-app updates pick it up from there. Start it from the Actions tab:
+# Release -> Run workflow, with "Publish as a release" ticked (or push a tag v<version>).
 # One-time setup, in Settings → Secrets and variables → Actions:
 #   PULSE_KEYSTORE_BASE64     the release keystore, base64-encoded
 #   PULSE_KEYSTORE_PASSWORD   its password
-# "Run workflow" (manual) builds and keeps the APK as a download of the run, without releasing.
+# Unticked, "Run workflow" only builds, and keeps the APK as a download of the run.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish as a release (v<version> from Cargo.toml)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -57,7 +63,9 @@ jobs:
           KEYSTORE_PW: ${{ secrets.PULSE_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            if [ "${GITHUB_REF_TYPE}" = tag ]; then echo "::error::the PULSE_KEYSTORE_BASE64 secret is missing"; exit 1; fi
+            if [ "${GITHUB_REF_TYPE}" = tag ] || [ "${{ inputs.publish }}" = true ]; then
+              echo "::error::the PULSE_KEYSTORE_BASE64 secret is missing (Settings -> Secrets and variables -> Actions)"; exit 1
+            fi
             echo "::warning::no signing key: this build is signed with a debug key and can't update an installed Pulse"
             exit 0
           fi
@@ -81,9 +89,10 @@ jobs:
           path: dist/pulse-${{ steps.v.outputs.version }}.apk
 
       - name: Publish the release
-        if: github.ref_type == 'tag'
+        if: github.ref_type == 'tag' || inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" "dist/pulse-${{ steps.v.outputs.version }}.apk" \
-            --title "Pulse ${{ steps.v.outputs.version }}" --generate-notes
+          v="${{ steps.v.outputs.version }}"
+          gh release create "v$v" "dist/pulse-$v.apk" --target "$GITHUB_SHA" \
+            --title "Pulse $v" --generate-notes
