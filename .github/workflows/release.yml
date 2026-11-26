@@ -35,9 +35,15 @@ jobs:
 
       - name: Version
         id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           v=$(./bump-version.sh --show)
           echo "version=$v" >> "$GITHUB_OUTPUT"
+          # a version is published once: say so now, not after the build
+          if { [ "${GITHUB_REF_TYPE}" = tag ] || [ "${{ inputs.publish }}" = true ]; } && gh release view "v$v" >/dev/null 2>&1; then
+            echo "::error::Pulse $v is already released. Raise the version (./bump-version.sh) and push before releasing again."; exit 1
+          fi
           if [ "${GITHUB_REF_TYPE}" = tag ] && [ "${GITHUB_REF_NAME}" != "v$v" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} doesn't match the version in Cargo.toml ($v)"; exit 1
           fi
