@@ -22,6 +22,8 @@ final class AudioFocus {
     private static boolean resumeOnGain;
     private static long lostAt;
     private static boolean lostToDuck;
+    /** the interruption was a phone or voice call (after one, the music carries on) */
+    private static boolean lostToCall;
     /** the last published state: focus is asked for when playback starts, not on every update
      *  (asking again right after losing it took the sound back from the other app) */
     private static boolean wasPlaying;
@@ -40,28 +42,42 @@ final class AudioFocus {
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                // a call, a voice message, a video app (TikTok asks to "duck" the others), a
-                // navigation prompt: pause (lowering the volume left the music running unheard)
+                // a call, a voice message, a video app, a navigation prompt: pause (lowering the
+                // volume left the music running unheard)
                 lostToDuck = change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK;
                 lostAt = android.os.SystemClock.elapsedRealtime();
+                lostToCall = inCall();
                 resumeOnGain = PlaybackService.isPlaying();
-                report(lostToDuck ? "focus:duck" : "focus:transient");
+                report((lostToDuck ? "focus:duck" : "focus:transient") + (lostToCall ? " (call)" : ""));
                 MediaBridge.nativeCommand("pause");
                 break;
             case AudioManager.AUDIOFOCUS_GAIN:
                 held = true;
                 long away = android.os.SystemClock.elapsedRealtime() - lostAt;
-                // after a call: carry on. After a ducking app: only if it was short (a prompt,
-                // a notification sound), not after scrolling a video app for a while
-                boolean resume = resumeOnGain && (!lostToDuck || away < 15_000);
+                // carry on by itself only after a call, or after something very short (a
+                // notification sound, a navigation prompt). Video apps (TikTok, Reels, Shorts) take
+                // the sound for each video and hand it back between them: resuming then made the
+                // music come back while scrolling, so after those it waits for play.
+                boolean resume = resumeOnGain && (lostToCall || inCall() || away < 5_000);
                 resumeOnGain = false;
-                report("focus:gain" + (resume ? " (resuming)" : ""));
+                report("focus:gain after " + (away / 1000) + " s" + (resume ? " (resuming)" : " (staying paused)"));
                 if (resume) MediaBridge.nativeCommand("play");
                 break;
             default:
                 break;
         }
     };
+
+    /** a phone call, or a voice/video call in an app (WhatsApp, Teams…) */
+    private static boolean inCall() {
+        try {
+            int mode = am != null ? am.getMode() : AudioManager.MODE_NORMAL;
+            return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
+                || mode == AudioManager.MODE_RINGTONE;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     private static void report(String what) {
         try { MediaBridge.nativeCommand(what); } catch (Throwable ignored) {}
